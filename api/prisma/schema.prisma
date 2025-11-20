@@ -1,0 +1,133 @@
+// Prisma schema for chat persistence
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ChatSession {
+  id        String   @id @default(cuid())
+  userId    Int
+  title     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages ChatMessage[]
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+  userId    Int?
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+model User {
+  id        Int           @id @default(autoincrement())
+  phone     String        @unique
+  nickname  String?
+  gender    Boolean?
+  avatarUrl String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  chatSessions ChatSession[]
+  archives  Archive[]
+  collects  Collect[]
+  events    UserEvent[]
+  insightCopies InsightCopy[]
+  settings  UserSetting?
+}
+
+model Archive {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  name         String
+  relationship String
+  event        String
+  date         DateTime
+  events       Json?
+  tag          String[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("Archive") // 映射到已存在的表名（你的迁移创建的是大写表名）
+}
+
+model Collect {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  itemId    Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId])
+  @@index([userId, createdAt])
+}
+
+model UserEvent {
+  id               Int      @id @default(autoincrement())
+  userId           Int
+  targetName       String
+  eventName        String
+  eventType        String   @default("custom")
+  eventDate        DateTime
+  remindBeforeDays Int      @default(7)
+  note             String?
+  metadata         Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, eventDate])
+  @@map("user_events")
+}
+
+model InsightCopy {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  text      String
+  source    String   @default("system")
+  tags      String[] @default([])
+  weight    Int      @default(1)
+  isActive  Boolean  @default(true)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isActive, updatedAt])
+  @@map("insight_copy")
+}
+
+model UserSetting {
+  id                     Int      @id @default(autoincrement())
+  userId                 Int      @unique
+  importantDateReminder  Boolean  @default(true)
+  inspirationPush        Boolean  @default(false)
+  metadata               Json?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}

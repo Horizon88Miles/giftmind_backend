@@ -1,0 +1,48 @@
+{
+  "kind": "collectionType",
+  "collectionName": "archives",
+  "info": {
+    "singularName": "archive",
+    "pluralName": "archives",
+    "displayName": "Archive"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "date": {
+      "type": "date",
+      "required": true
+    },
+    "tag": {
+      "type": "json"
+    },
+    "relationship": {
+      "type": "enumeration",
+      "required": true,
+      "default": "lover",
+      "enum": [
+        "family",
+        "friend",
+        "lover",
+        "colleague",
+        "other"
+      ]
+    },
+    "event": {
+      "type": "string",
+      "required": true
+    },
+    "userid": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "archive"
+    }
+  }
+}

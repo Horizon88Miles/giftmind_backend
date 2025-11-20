@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Archive" ALTER COLUMN "tag" DROP DEFAULT;

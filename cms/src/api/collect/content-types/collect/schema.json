@@ -1,0 +1,31 @@
+{
+  "kind": "collectionType",
+  "collectionName": "collects",
+  "info": {
+    "singularName": "collect",
+    "pluralName": "collects",
+    "displayName": "Collect"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "userid": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "collects"
+    },
+    "itemid": {
+      "type": "integer",
+      "required": true
+    },
+    "itemtitle": {
+      "type": "string"
+    },
+    "itemimage": {
+      "type": "string"
+    }
+  }
+}
