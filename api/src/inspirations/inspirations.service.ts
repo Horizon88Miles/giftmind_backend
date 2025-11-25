@@ -7,7 +7,9 @@ import { FormattedItem, Theme } from './inspirations.types';
 export class InspirationsService {
   constructor(private readonly httpService: HttpService) {}
 
-  private readonly strapiUrl = 'http://localhost:1337/api';
+  private readonly strapiUrl =
+    process.env.STRAPI_BASE_URL?.replace(/\/$/, '') || 'http://localhost:1337/api';
+  private readonly strapiOrigin = this.strapiUrl.replace(/\/api\/?$/, '');
 
   /**
    * @description 终极版、更健壮的Strapi数据清洗函数，能处理深度嵌套和图片路径
@@ -57,7 +59,7 @@ export class InspirationsService {
       if (typeof newObj.url === 'string') {
         let url: string = newObj.url;
         if (url.startsWith('/')) {
-          url = `http://localhost:1337${url}`;
+          url = `${this.strapiOrigin}${url}`;
         }
         return url; // 将整个图片对象替换为绝对URL字符串
       }
@@ -67,7 +69,7 @@ export class InspirationsService {
         newObj.images = newObj.images.map((img: any) => {
           const u = typeof img === 'string' ? img : img?.url;
           if (!u) return '';
-          return u.startsWith('/') ? `http://localhost:1337${u}` : u;
+          return u.startsWith('/') ? `${this.strapiOrigin}${u}` : u;
         }).filter(Boolean);
       }
 
@@ -76,18 +78,18 @@ export class InspirationsService {
         newObj.detailImages = newObj.detailImages.map((img: any) => {
           const u = typeof img === 'string' ? img : img?.url;
           if (!u) return '';
-          return u.startsWith('/') ? `http://localhost:1337${u}` : u;
+          return u.startsWith('/') ? `${this.strapiOrigin}${u}` : u;
         }).filter(Boolean);
       }
 
       // 主题封面
       if (typeof newObj.coverUrl === 'string') {
         if (newObj.coverUrl.startsWith('/')) {
-          newObj.coverUrl = `http://localhost:1337${newObj.coverUrl}`;
+          newObj.coverUrl = `${this.strapiOrigin}${newObj.coverUrl}`;
         }
       } else if (newObj.coverUrl?.url) {
         const u = newObj.coverUrl.url;
-        newObj.coverUrl = u.startsWith('/') ? `http://localhost:1337${u}` : u;
+        newObj.coverUrl = u.startsWith('/') ? `${this.strapiOrigin}${u}` : u;
       }
 
       // 为好物自动生成主图 coverUrl：优先 images，其次 detailImages

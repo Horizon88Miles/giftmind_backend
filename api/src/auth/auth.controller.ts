@@ -4,6 +4,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LoginSmsDto } from './dtos/login-sms.dto';
 import { ConfigService } from '@nestjs/config';
 import { UpdateProfileDto } from './dtos/update-profile.dto';
+import { LoginWechatDto } from './dtos/login-wechat.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -54,6 +55,32 @@ export class AuthController {
       message: 'ok',
       data: { accessToken, refreshToken, user },
     };
+  }
+
+  @Post('loginWechat')
+  async loginWechat(@Body() body: LoginWechatDto) {
+    const code = (body.code || '').trim();
+    if (!code) {
+      return { code: 400, message: 'code 缺失' };
+    }
+
+    try {
+      const { user } = await this.authService.loginWithWechat(code, {
+        nickname: body.nickname,
+        avatarUrl: body.avatarUrl,
+      });
+
+      const accessToken = this.authService.signAccessToken(user);
+      const refreshToken = this.authService.signRefreshToken(user);
+
+      return {
+        code: 0,
+        message: 'ok',
+        data: { accessToken, refreshToken, user },
+      };
+    } catch (error) {
+      return { code: 400, message: error.message || '微信登录失败' };
+    }
   }
 
   @UseGuards(JwtAuthGuard)

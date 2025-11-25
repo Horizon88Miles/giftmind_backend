@@ -1,16 +1,25 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { WechatService, WechatSessionPayload } from './wechat.service';
 
-interface JwtPayload {
+export interface JwtPayload {
   id: number;
-  phone: string;
+  phone?: string;
   nickname?: string;
   gender?: boolean;
   meetDays?: number;
   avatarUrl?: string;
+  loginProvider?: string;
+  wechatOpenId?: string;
+  wechatUnionId?: string;
 }
+
+type WechatProfileInput = {
+  nickname?: string;
+  avatarUrl?: string;
+};
 
 @Injectable()
 export class AuthService {
@@ -21,21 +30,105 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly wechatService: WechatService,
   ) {}
 
   // 确保用户存在（按手机号查找，不存在则创建），返回持久化后的用户基础信息
-  async ensureUserByPhone(phone: string): Promise<{ id: number; phone: string; nickname?: string; gender?: boolean; meetDays: number; avatarUrl?: string }> {
+  async ensureUserByPhone(phone: string): Promise<JwtPayload> {
     // 通过 any 访问以规避类型生成不同步导致的属性缺失诊断
     const user = await (this.prisma as any).user.upsert({
       where: { phone },
-      update: {},
+      update: {
+        loginProvider: 'sms',
+      },
       create: {
         phone,
         nickname: '心礼用户',
         avatarUrl: '',
+        loginProvider: 'sms',
       },
     });
     return this.toUserPayload(user);
+  }
+
+  async ensureUserByWechat(params: {
+    openId: string;
+    unionId?: string;
+    sessionKey?: string;
+    profile?: WechatProfileInput;
+  }): Promise<JwtPayload> {
+    const { openId, unionId, sessionKey, profile } = params;
+    if (!openId) {
+      throw new BadRequestException('微信 openId 缺失');
+    }
+
+    const existing = await (this.prisma as any).user.findFirst({
+      where: unionId
+        ? {
+            OR: [
+              { wechatUnionId: unionId },
+              { wechatOpenId: openId },
+            ],
+          }
+        : { wechatOpenId: openId },
+    });
+
+    const normalizedProfile = this.normalizeWechatProfile(profile);
+
+    if (existing) {
+      const data: Record<string, any> = {};
+      if (sessionKey && existing.wechatSessionKey !== sessionKey) {
+        data.wechatSessionKey = sessionKey;
+      }
+      if (unionId && !existing.wechatUnionId) {
+        data.wechatUnionId = unionId;
+      }
+      if (existing.loginProvider !== 'wechat') {
+        data.loginProvider = 'wechat';
+      }
+      if (normalizedProfile.nickname && !existing.nickname) {
+        data.nickname = normalizedProfile.nickname;
+      }
+      if (normalizedProfile.avatarUrl && !existing.avatarUrl) {
+        data.avatarUrl = normalizedProfile.avatarUrl;
+      }
+
+      if (Object.keys(data).length) {
+        const updated = await (this.prisma as any).user.update({ where: { id: existing.id }, data });
+        return this.toUserPayload(updated);
+      }
+
+      return this.toUserPayload(existing);
+    }
+
+    const created = await (this.prisma as any).user.create({
+      data: {
+        wechatOpenId: openId,
+        wechatUnionId: unionId,
+        wechatSessionKey: sessionKey,
+        nickname: normalizedProfile.nickname ?? '心礼用户',
+        avatarUrl: normalizedProfile.avatarUrl ?? '',
+        loginProvider: 'wechat',
+      },
+    });
+
+    return this.toUserPayload(created);
+  }
+
+  async loginWithWechat(code: string, profile?: WechatProfileInput): Promise<{ user: JwtPayload; session: WechatSessionPayload }> {
+    if (!code) {
+      throw new BadRequestException('code 缺失');
+    }
+
+    const session = await this.wechatService.code2Session(code);
+    const user = await this.ensureUserByWechat({
+      openId: session.openId,
+      unionId: session.unionId,
+      sessionKey: session.sessionKey,
+      profile,
+    });
+
+    return { user, session };
   }
 
   private computeMeetDays(createdAt: Date): number {
@@ -46,15 +139,38 @@ export class AuthService {
     return Math.max(1, days + 1); // 含注册当日，最少为1
   }
 
-  private toUserPayload(user: any): { id: number; phone: string; nickname?: string; gender?: boolean; meetDays: number; avatarUrl?: string } {
+  private toUserPayload(user: any): JwtPayload {
     return {
       id: user.id,
-      phone: user.phone,
+      phone: user.phone ?? undefined,
       nickname: user.nickname ?? '心礼用户',
       gender: user.gender ?? undefined,
       meetDays: this.computeMeetDays(user.createdAt),
       avatarUrl: user.avatarUrl ?? '',
+      loginProvider: user.loginProvider ?? undefined,
+      wechatOpenId: user.wechatOpenId ?? undefined,
+      wechatUnionId: user.wechatUnionId ?? undefined,
     };
+  }
+
+  private normalizeWechatProfile(profile?: WechatProfileInput): WechatProfileInput {
+    if (!profile) {
+      return {};
+    }
+    const normalized: WechatProfileInput = {};
+    if (typeof profile.nickname === 'string') {
+      const nickname = profile.nickname.trim();
+      if (nickname) {
+        normalized.nickname = nickname;
+      }
+    }
+    if (typeof profile.avatarUrl === 'string') {
+      const avatarUrl = profile.avatarUrl.trim();
+      if (avatarUrl) {
+        normalized.avatarUrl = avatarUrl;
+      }
+    }
+    return normalized;
   }
 
   async updateProfile(
@@ -72,7 +188,8 @@ export class AuthService {
       payload.gender = data.gender;
     }
     if (typeof data.phone === 'string') {
-      payload.phone = data.phone;
+      const trimmedPhone = data.phone.trim();
+      payload.phone = trimmedPhone || null;
     }
     if (!Object.keys(payload).length) {
       return this.getUserById(userId);
@@ -98,6 +215,9 @@ export class AuthService {
         gender: payload.gender,
         meetDays: payload.meetDays,
         avatarUrl: payload.avatarUrl,
+        loginProvider: payload.loginProvider,
+        wechatOpenId: payload.wechatOpenId,
+        wechatUnionId: payload.wechatUnionId,
       };
       
       const token = this.jwtService.sign(cleanPayload, {

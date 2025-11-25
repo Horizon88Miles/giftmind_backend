@@ -36,19 +36,24 @@ model ChatMessage {
 }
 
 model User {
-  id        Int           @id @default(autoincrement())
-  phone     String        @unique
-  nickname  String?
-  gender    Boolean?
-  avatarUrl String?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  chatSessions ChatSession[]
-  archives  Archive[]
-  collects  Collect[]
-  events    UserEvent[]
-  insightCopies InsightCopy[]
-  settings  UserSetting?
+  id              Int           @id @default(autoincrement())
+  phone           String?       @unique
+  nickname        String?
+  gender          Boolean?
+  avatarUrl       String?
+  wechatOpenId    String?       @unique
+  wechatUnionId   String?       @unique
+  wechatSessionKey String?
+  loginProvider   String        @default("sms")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  chatSessions    ChatSession[]
+  archives        Archive[]
+  collects        Collect[]
+  events          UserEvent[]
+  insightCopies   InsightCopy[]
+  settings        UserSetting?
 }
 
 model Archive {
