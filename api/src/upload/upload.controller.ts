@@ -34,9 +34,10 @@ export class UploadController {
     if (!file) {
       throw new HttpException('未收到上传文件', HttpStatus.BAD_REQUEST);
     }
-    const protocol = req.protocol;
-    const host = req.get('host');
-    const baseUrl = process.env.PUBLIC_API_URL || `${protocol}://${host}`;
+    //const protocol = req.protocol;
+    //const host = req.get('host');
+    //const baseUrl = process.env.PUBLIC_API_URL || `${protocol}://${host}`;
+    const baseUrl = 'https://api.horizonfringe.com';
     const url = `${baseUrl}/uploads/${file.filename}`;
     return {
       code: 200,
