@@ -36,7 +36,8 @@ export class UploadController {
     }
     const protocol = req.protocol;
     const host = req.get('host');
-    const url = `${protocol}://${host}/uploads/${file.filename}`;
+    const baseUrl = process.env.PUBLIC_API_URL || `${protocol}://${host}`;
+    const url = `${baseUrl}/uploads/${file.filename}`;
     return {
       code: 200,
       message: 'ok',

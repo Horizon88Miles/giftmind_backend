@@ -6,6 +6,9 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // 信任代理，让 req.protocol 能正确反映 HTTPS
+  app.set('trust proxy', true);
   
   // 全局开启请求体验证与类型转换
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));

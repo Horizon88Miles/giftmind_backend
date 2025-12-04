@@ -1,10 +1,14 @@
-// config/server.js
-     module.exports = ({ env }) => ({
-       host: env('HOST', '0.0.0.0'),
-       port: env.int('PORT', 1337),
-       // ★★★ 确保这一行存在且正确 ★★★
-       url: env('PUBLIC_URL', 'http://localhost:1337'), 
-       app: {
-         keys: env.array('APP_KEYS'),
-       },
-     });
+export default ({ env }) => {
+  const isDev = env('NODE_ENV', 'development') === 'development';
+  const defaultDevUrl = isDev ? `http://localhost:${env.int('PORT', 1337)}` : undefined;
+  const publicUrl = env('PUBLIC_URL');
+
+  return {
+    host: env('HOST', '0.0.0.0'),
+    port: env.int('PORT', 1337),
+    ...(publicUrl || defaultDevUrl ? { url: publicUrl || defaultDevUrl } : {}),
+    app: {
+      keys: env.array('APP_KEYS'),
+    },
+  };
+};
