@@ -845,4 +845,20 @@ export class ChatService {
 
     return assistantMsg;
   }
+
+  async deleteSession(userId: number, sessionId: string): Promise<void> {
+    const prisma: any = this.prisma as any;
+    try {
+      if (prisma?.chatMessage) {
+        await prisma.chatMessage.deleteMany({ where: { sessionId, userId } });
+      }
+      if (prisma?.chatSession) {
+        await prisma.chatSession.deleteMany({ where: { id: sessionId, userId } });
+      }
+    } catch (error: any) {
+      this.logger.error(`删除会话 ${sessionId} 失败`, error?.message || error);
+      throw new HttpException('删除会话失败', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    ChatService.historyStore.delete(sessionId);
+  }
 }

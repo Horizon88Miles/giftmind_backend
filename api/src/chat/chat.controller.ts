@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards, Request, HttpStatus, Res, Param } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Query, UseGuards, Request, HttpStatus, Res, Param } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ChatService } from './chat.service';
 import { SendMessageDto } from './dtos/send-message.dto';
@@ -202,6 +202,21 @@ export class ChatController {
       code: HttpStatus.OK,
       message: 'ok',
       data: result,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('sessions/:id')
+  async deleteSession(
+    @Request() req: any,
+    @Param('id') id: string,
+  ): Promise<ApiResponse<{ success: boolean }>> {
+    const userId = req.user.id;
+    await this.chatService.deleteSession(userId, id);
+    return {
+      code: HttpStatus.OK,
+      message: 'ok',
+      data: { success: true },
     };
   }
 }
