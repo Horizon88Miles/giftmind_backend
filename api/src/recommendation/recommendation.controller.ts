@@ -63,6 +63,11 @@ export class RecommendationController {
         type: 'planning',
         version: 1,
         itemId: dto.itemId,
+        itemTitle: dto.itemTitle,
+        itemPrice: dto.itemPrice,
+        itemSlogan: dto.itemSlogan,
+        itemDescription: dto.itemDescription,
+        itemCover: dto.itemCover,
         plan,
       });
       return { code: 200, message: 'OK', data: plan };
@@ -70,4 +75,5 @@ export class RecommendationController {
       throw new HttpException('生成策划失败', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
+
 }

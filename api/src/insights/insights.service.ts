@@ -55,7 +55,7 @@ export class InsightsService {
     payload: InsightsBoardResponse;
   };
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * 获取“心犀小报”看板数据
@@ -187,8 +187,9 @@ export class InsightsService {
     lookAhead: Date,
     take: number,
   ): Promise<UserEventRecord[]> {
+    let directEvents: UserEventRecord[] = [];
     try {
-      return await (this.prisma as any).userEvent.findMany({
+      directEvents = await (this.prisma as any).userEvent.findMany({
         where: {
           userId,
           eventDate: {
@@ -200,14 +201,20 @@ export class InsightsService {
         take,
       });
     } catch (error) {
-      if (this.isMissingUserEventsTableError(error)) {
-        this.logger.warn(
-          'user_events 表不存在，将回退到 Archive 数据计算提醒',
-        );
-        return this.fetchUpcomingEventsFromArchives(userId, now, lookAhead, take);
+      // 忽略表不存在等错误，视为无数据，继续查询 Archive
+      if (!this.isMissingUserEventsTableError(error)) {
+        this.logger.warn(`查询 user_events 失败: ${(error as any).message}`);
       }
-      throw error;
     }
+
+    // 始终查询 Archive 中的事件（动态计算），确保心礼档案的新增事件能被识别
+    const archiveEvents = await this.fetchUpcomingEventsFromArchives(userId, now, lookAhead, take);
+
+    // 合并并按时间排序
+    const all = [...directEvents, ...archiveEvents];
+    return all
+      .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime())
+      .slice(0, take);
   }
 
   private async fetchUpcomingEventsFromArchives(
